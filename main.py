@@ -166,6 +166,7 @@ def rotate_point_clockwise(x, y, angle_degrees = 10.713123022791):
 isdisplayed = False
 def DetectCard(img, timestamp_sec):
 	global isdisplayed
+	global class_points, class_points_prev, class_race, class_race_time, class_whole_time
 	detections = DetectionProcess(img)
 	detected_cards = []
 	for detection in detections:
@@ -202,7 +203,7 @@ def DetectCard(img, timestamp_sec):
 			if class_race[class_name][0] > 0:
 				class_whole_time[class_name] += class_race[class_name][2]
 				print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
-		if class_race[class_name][0] > 0 and ((class_points_prev[class_name][1] > 0 and class_points[class_name][1] > 0 and abs(class_points_prev[class_name][1] -  class_points[class_name][1])< 1) or len(detections) == 8):
+		if class_race[class_name][0] > 0 and ((class_points_prev[class_name][1] > 0 and class_points[class_name][1] > 0 and class_points_prev[class_name][1] -  class_points[class_name][1] < 1 and class_points_prev[class_name][1] -  class_points[class_name][1]>0) or len(detections) == 8):
 			# Record end time
 			end_time = timestamp_sec
 
@@ -321,7 +322,7 @@ def process_video(video_path):
         # Convert to seconds (optional)
 				timestamp_sec = timestamp_ms / 1000.0
     
-				if frame_count % 2 == 0:
+				if frame_count % 5 == 0:
 					DetectCard(frame, timestamp_sec)
 				frame_count += 1
 
