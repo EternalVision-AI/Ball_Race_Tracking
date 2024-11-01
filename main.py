@@ -11,7 +11,7 @@ INPUT_HEIGHT = 640
 recognition_classes = ['White', 'Black', 'Blue', 'Green', 'Yellow', 'Orange', 'Red', 'Purple']
 
 
-confThreshold = 0.7  # Confidence threshold
+confThreshold = 0.6  # Confidence threshold
 nmsThreshold = 0.6 # Non-maximum suppression threshold
 dir_path = os.path.dirname(os.path.realpath(__file__))
 detection_model = cv2.dnn.readNetFromONNX(dir_path + "/ball.onnx")
@@ -30,35 +30,35 @@ class_colors = {
 }
 
 class_points = {
-    'White': [0, 0],
-    'Black': [0, 0],
-    'Blue': [0, 0],
-    'Green': [0, 0],
-    'Yellow': [0, 0],
-    'Orange': [0, 0],
-    'Red': [0, 0],
-    'Purple': [0, 0]
+    'White': [1, 1],
+    'Black': [1, 1],
+    'Blue': [1, 1],
+    'Green': [1, 1],
+    'Yellow': [1, 1],
+    'Orange': [1, 1],
+    'Red': [1, 1],
+    'Purple': [1, 1]
 }
 
 class_points_prev = {
-    'White': [0, 0],
-    'Black': [0, 0],
-    'Blue': [0, 0],
-    'Green': [0, 0],
-    'Yellow': [0, 0],
-    'Orange': [0, 0],
-    'Red': [0, 0],
-    'Purple': [0, 0]
+    'White': [1, 1],
+    'Black': [1, 1],
+    'Blue': [1, 1],
+    'Green': [1, 1],
+    'Yellow': [1, 1],
+    'Orange': [1, 1],
+    'Red': [1, 1],
+    'Purple': [1, 1]
 }
 class_race = {
-    'White': [-1, 0, 0],
-    'Black': [-1, 0, 0],
-    'Blue': [-1, 0, 0],
-    'Green': [-1, 0, 0],
-    'Yellow': [-1, 0, 0],
-    'Orange': [-1, 0, 0],
-    'Red': [-1, 0, 0],
-    'Purple': [-1, 0, 0],
+    'White': [0, 0, 0],
+    'Black': [0, 0, 0],
+    'Blue': [0, 0, 0],
+    'Green': [0, 0, 0],
+    'Yellow': [0, 0, 0],
+    'Orange': [0, 0, 0],
+    'Red': [0, 0, 0],
+    'Purple': [0, 0, 0],
 }
 class_race_time = {
     'White': 0,
@@ -70,7 +70,6 @@ class_race_time = {
     'Red': 0,
     'Purple': 0,
 }
-
 
 class_whole_time = {
     'White': 0,
@@ -146,14 +145,14 @@ def draw_class_rectangle(img, left, top, right, bottom, class_name):
     return img
 
 def draw_startline(img):
-		start_point = (750, 180)
-		end_point = (1120, 250)
+		start_point = (0, 260)
+		end_point = (768, 220)
 		color = (0, 0, 255)  # Green
 		thickness = 5
 		cv2.line(img, start_point, end_point, color, thickness)
 		return img
 
-def rotate_point_clockwise(x, y, angle_degrees = 10.713123022791):
+def rotate_point_clockwise(x, y, angle_degrees = -6.230828025477707006369426751592):
     # Convert the angle from degrees to radians
     angle_radians = math.radians(angle_degrees)
     
@@ -161,7 +160,7 @@ def rotate_point_clockwise(x, y, angle_degrees = 10.713123022791):
     new_x = x * math.cos(angle_radians) + y * math.sin(angle_radians)
     new_y = -x * math.sin(angle_radians) + y * math.cos(angle_radians)
     
-    return new_x, new_y
+    return new_x, new_y-280
 
 isdisplayed = False
 def DetectCard(img, timestamp_sec):
@@ -184,12 +183,12 @@ def DetectCard(img, timestamp_sec):
 		detected_cards.append([left, top, right, bottom])
   
 		
-		new_x0, new_y0 = rotate_point_clockwise(750, 180)
+		new_x0, new_y0 = rotate_point_clockwise(600-512, 550)
 		new_x, new_y = rotate_point_clockwise(left, top)
 		img = draw_class_rectangle(img, left, top, right, bottom, class_name)
 		# cv2.putText(img, closest_color_class, (left, top), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
-		# cv2.putText(img, str(round(new_x))+", "+str(round(new_y)), (left, top), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
-		# cv2.putText(img, str(round(new_x0))+", "+str(round(new_y0)), (750, 180), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
+		cv2.putText(img, str(round(new_x))+", "+str(round(new_y)), (left, top), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
+		# cv2.putText(img, str(round(new_x0))+", "+str(round(new_y0)), (int(new_x0), int(new_y0)), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
 
 		class_points[class_name] = (new_x, new_y)
 		if class_points_prev[class_name][1] > 0 and class_points[class_name][1] < 0:
@@ -198,12 +197,25 @@ def DetectCard(img, timestamp_sec):
 			# Calculate elapsed time
 
 			class_race[class_name][0] += 1
-			class_race[class_name][2] = end_time - class_race[class_name][1]
+			class_race[class_name][2] += end_time - class_race[class_name][1]
 			class_race[class_name][1] = end_time
-			if class_race[class_name][0] > 0:
-				class_whole_time[class_name] += class_race[class_name][2]
-				print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
-		if class_race[class_name][0] > 0 and ((class_points_prev[class_name][1] > 0 and class_points[class_name][1] > 0 and class_points_prev[class_name][1] -  class_points[class_name][1] < 1 and class_points_prev[class_name][1] -  class_points[class_name][1]>0) or len(detections) == 8):
+			if class_race[class_name][0] > 0 and len(detections) != 8:
+				
+				if class_race[class_name][2] > 20 and class_race[class_name][2] < 100:
+					class_whole_time[class_name] += class_race[class_name][2]
+					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
+					class_race[class_name][2] = 0
+				else:
+					class_race[class_name][0] -= 1
+			if class_race[class_name][0] > 0 and len(detections) == 8 and class_points[class_name][1] > -60:
+				
+				if class_race[class_name][2] > 20 and class_race[class_name][2] < 100:
+					class_whole_time[class_name] += class_race[class_name][2]
+					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
+					class_race[class_name][2] = 0
+				else:
+					class_race[class_name][0] -= 1
+		if class_race[class_name][0] > 0 and class_points[class_name][1] > 0 and ((class_points_prev[class_name][1] > 0 and class_points[class_name][1] > 0 and class_points_prev[class_name][1] -  class_points[class_name][1] < 2 and class_points_prev[class_name][1] -  class_points[class_name][1]>0) or len(detections) == 8):
 			# Record end time
 			end_time = timestamp_sec
 
@@ -214,7 +226,7 @@ def DetectCard(img, timestamp_sec):
 				class_race_time[class_name] = end_time
     
 				class_whole_time[class_name] += class_race[class_name][2]
-				print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
+				# print(class_name + " in Lap final "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
 
 
 		class_points_prev[class_name] = (new_x, new_y)
@@ -222,17 +234,18 @@ def DetectCard(img, timestamp_sec):
   # Check if all y coordinates in class_points are greater than 0
 	all_y_positive = all(point[1] > 0 for point in class_points.values())
 	all_y_positive_prev = all(point[1] > 0 for point in class_points_prev.values())
- 
+	# print(all_y_positive)
 	if not all_y_positive:
 		isdisplayed = False
-	if all_y_positive and all_y_positive_prev and isdisplayed is False:
+	if all_y_positive and isdisplayed is False and len(detections) == 8:
 			
 			# Filter and sort class points based on y-coordinate
 			sorted_classes = [(name, point[1]) for name, point in class_points.items() if point[1] > 0]
 			sorted_classes.sort(key=lambda x: x[1])  # Sort by y-coordinate
    
 			for idx, (class_name, y_coord) in enumerate(sorted_classes):
-					if idx == 7 and class_race[class_name][0] != -1:
+					if idx == 7 and class_race[class_name][0] != 0:
+						end_time = timestamp_sec
 						class_race[class_name][0] += 1
 						class_race[class_name][2] = end_time - class_race[class_name][1]
 						class_whole_time[class_name] += class_race[class_name][2]
@@ -263,14 +276,14 @@ def DetectCard(img, timestamp_sec):
 					'Purple': [0, 0]
 			}
 			class_race = {
-					'White': [-1, 0, 0],
-					'Black': [-1, 0, 0],
-					'Blue': [-1, 0, 0],
-					'Green': [-1, 0, 0],
-					'Yellow': [-1, 0, 0],
-					'Orange': [-1, 0, 0],
-					'Red': [-1, 0, 0],
-					'Purple': [-1, 0, 0],
+					'White': [0, 0, 0],
+					'Black': [0, 0, 0],
+					'Blue': [0, 0, 0],
+					'Green': [0, 0, 0],
+					'Yellow': [0, 0, 0],
+					'Orange': [0, 0, 0],
+					'Red': [0, 0, 0],
+					'Purple': [0, 0, 0],
 			}
 			class_race_time = {
 					'White': 0,
@@ -299,12 +312,19 @@ def DetectCard(img, timestamp_sec):
   
 
 	img = draw_startline(img)
+	# Resize the image to half of its original dimensions
+	img_resized = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2))
+
+	# Display the resized image
 	cv2.imshow("Race", img)
 	cv2.waitKey(1)
+	return img
+
 def process_video(video_path):
     # Open the video file
 		cap = cv2.VideoCapture(video_path)
-
+		fps = cap.get(cv2.CAP_PROP_FPS)
+		print(f"Camera FPS: {fps}")
     # Check if video file opened successfully
 		if not cap.isOpened():
 				print(f"Error opening video file: {video_path}")
@@ -312,6 +332,7 @@ def process_video(video_path):
 
 		frame_count = 0
     # Loop over each frame in the video
+				
 		while True:
 				ret, frame = cap.read()
 				if not ret:
@@ -321,16 +342,37 @@ def process_video(video_path):
 				timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
         # Convert to seconds (optional)
 				timestamp_sec = timestamp_ms / 1000.0
-    
-				if frame_count % 5 == 0:
-					DetectCard(frame, timestamp_sec)
+				# Define the codec and create VideoWriter object to write the video
+				fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 video
+				# output_video = cv2.VideoWriter('output_video.mp4', fourcc, 30, (int(frame.shape[1] * 2/5), frame.shape[0]))  # 30 fps, half-sized frame
+				if frame_count % 2 == 0:
+					# Get frame dimensions
+					height, width, _ = frame.shape
+					# print(height, width)
+					# print(str(width*2/5)) #512
+					
+					# Cut the middle portion (width * 2/5 to width * 4/5)
+					start_x = int(width * 1 / 5)
+					end_x = int(width * 3 / 5)
+					
+					# Slice the frame horizontally to keep only the middle portion
+					middle_frame = frame[:, start_x:end_x]
+					# img = None
+					# Darken the image by multiplying it with a factor less than 1
+					dark_factor = 1  # Adjust this value to control darkness level (0.0 to 1.0)
+					bright_factor = 0
+					img_darkened = cv2.convertScaleAbs(middle_frame, alpha=dark_factor, beta=bright_factor)
+					# Pass the cropped frame to the DetectCard function
+					img = DetectCard(img_darkened, timestamp_sec)
+					# Write the resized frame to the video file
+					# output_video.write(img)
 				frame_count += 1
 
     # Release the video capture object
 		# cap.release()
 
 if __name__ == '__main__':
-    video_path = "./videos/4.mp4"  # Change to your video path
+    video_path = "./new/(1).mp4"  # Change to your video path
     # Record start time
     
     process_video(video_path)
