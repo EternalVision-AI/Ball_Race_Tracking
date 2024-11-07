@@ -5,8 +5,8 @@ import math
 from collections import Counter
 from datetime import datetime
 # Constants.
-INPUT_WIDTH = 640
-INPUT_HEIGHT = 640
+INPUT_WIDTH = 320
+INPUT_HEIGHT = 320
 
 recognition_classes = ['White', 'Black', 'Blue', 'Green', 'Yellow', 'Orange', 'Red', 'Purple']
 
@@ -14,7 +14,7 @@ recognition_classes = ['White', 'Black', 'Blue', 'Green', 'Yellow', 'Orange', 'R
 confThreshold = 0.6  # Confidence threshold
 nmsThreshold = 0.6 # Non-maximum suppression threshold
 dir_path = os.path.dirname(os.path.realpath(__file__))
-detection_model = cv2.dnn.readNetFromONNX(dir_path + "/ball.onnx")
+detection_model = cv2.dnn.readNetFromONNX(dir_path + "/ballv8n.onnx")
 
 
 # Define BGR color values for each class
@@ -50,6 +50,7 @@ class_points_prev = {
     'Red': [1, 1],
     'Purple': [1, 1]
 }
+
 class_race = {
     'White': [0, 0, 0],
     'Black': [0, 0, 0],
@@ -60,6 +61,7 @@ class_race = {
     'Red': [0, 0, 0],
     'Purple': [0, 0, 0],
 }
+
 class_race_time = {
     'White': 0,
     'Black': 0,
@@ -145,8 +147,8 @@ def draw_class_rectangle(img, left, top, right, bottom, class_name):
     return img
 
 def draw_startline(img):
-		start_point = (0, 260)
-		end_point = (768, 220)
+		start_point = (0, 150)
+		end_point = (768, 150)
 		color = (0, 0, 255)  # Green
 		thickness = 5
 		cv2.line(img, start_point, end_point, color, thickness)
@@ -160,7 +162,7 @@ def rotate_point_clockwise(x, y, angle_degrees = -6.2308280254777070063694267515
     new_x = x * math.cos(angle_radians) + y * math.sin(angle_radians)
     new_y = -x * math.sin(angle_radians) + y * math.cos(angle_radians)
     
-    return new_x, new_y-280
+    return new_x, new_y-180
 
 isdisplayed = False
 def DetectCard(img, timestamp_sec):
@@ -192,16 +194,17 @@ def DetectCard(img, timestamp_sec):
 
 		class_points[class_name] = (new_x, new_y)
 		if class_points_prev[class_name][1] > 0 and class_points[class_name][1] < 0:
+			# print("Pass", class_name)
 			# Record end time
 			end_time = timestamp_sec
 			# Calculate elapsed time
 
 			class_race[class_name][0] += 1
-			class_race[class_name][2] += end_time - class_race[class_name][1]
+			class_race[class_name][2] = end_time - class_race[class_name][1]
 			class_race[class_name][1] = end_time
 			if class_race[class_name][0] > 0 and len(detections) != 8:
-				
-				if class_race[class_name][2] > 20 and class_race[class_name][2] < 100:
+				# print(str(class_race[class_name][2]))
+				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
 					class_whole_time[class_name] += class_race[class_name][2]
 					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
 					class_race[class_name][2] = 0
@@ -209,7 +212,7 @@ def DetectCard(img, timestamp_sec):
 					class_race[class_name][0] -= 1
 			if class_race[class_name][0] > 0 and len(detections) == 8 and class_points[class_name][1] > -60:
 				
-				if class_race[class_name][2] > 20 and class_race[class_name][2] < 100:
+				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
 					class_whole_time[class_name] += class_race[class_name][2]
 					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
 					class_race[class_name][2] = 0
@@ -313,7 +316,7 @@ def DetectCard(img, timestamp_sec):
 
 	img = draw_startline(img)
 	# Resize the image to half of its original dimensions
-	img_resized = cv2.resize(img, (img.shape[1] // 2, img.shape[0] // 2))
+	img_resized = cv2.resize(img, (img.shape[1] * 2, img.shape[0] * 2))
 
 	# Display the resized image
 	cv2.imshow("Race", img)
@@ -322,7 +325,10 @@ def DetectCard(img, timestamp_sec):
 
 def process_video(video_path):
     # Open the video file
-		cap = cv2.VideoCapture(video_path)
+		# cap = cv2.VideoCapture(video_path)
+		cap = cv2.VideoCapture(0)
+		desired_fps = 60
+		cap.set(cv2.CAP_PROP_FPS, desired_fps)
 		fps = cap.get(cv2.CAP_PROP_FPS)
 		print(f"Camera FPS: {fps}")
     # Check if video file opened successfully
@@ -353,7 +359,7 @@ def process_video(video_path):
 					
 					# Cut the middle portion (width * 2/5 to width * 4/5)
 					start_x = int(width * 1 / 5)
-					end_x = int(width * 3 / 5)
+					end_x = int(width * 4 / 5)
 					
 					# Slice the frame horizontally to keep only the middle portion
 					middle_frame = frame[:, start_x:end_x]
@@ -363,7 +369,7 @@ def process_video(video_path):
 					bright_factor = 0
 					img_darkened = cv2.convertScaleAbs(middle_frame, alpha=dark_factor, beta=bright_factor)
 					# Pass the cropped frame to the DetectCard function
-					img = DetectCard(img_darkened, timestamp_sec)
+					img = DetectCard(middle_frame, timestamp_sec)
 					# Write the resized frame to the video file
 					# output_video.write(img)
 				frame_count += 1
@@ -372,7 +378,7 @@ def process_video(video_path):
 		# cap.release()
 
 if __name__ == '__main__':
-    video_path = "./new/(1).mp4"  # Change to your video path
+    video_path = "./vid/(1).mp4"  # Change to your video path
     # Record start time
     
     process_video(video_path)
