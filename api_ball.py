@@ -4,11 +4,12 @@ import threading
 
 
 def send_request_in_background(race_id, marble_id, lap, time):
-    threading.Thread(
-        target=send_post_request,
-        args=(race_id, marble_id, lap, time),
-        daemon=True  # Background thread that won't block on exit
-    ).start()
+    pass
+    # threading.Thread(
+    #     target=send_post_request,
+    #     args=(race_id, marble_id, lap, time),
+    #     daemon=True  # Background thread that won't block on exit
+    # ).start()
     
 def send_post_request(race_id, marble_id, lap, time):
     # URL of the API endpoint

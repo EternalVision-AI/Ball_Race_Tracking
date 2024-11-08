@@ -54,14 +54,14 @@ class_points = {
 }
 
 class_points_prev = {
-    'White': [1, 1],
-    'Black': [1, 1],
-    'Blue': [1, 1],
-    'Green': [1, 1],
-    'Yellow': [1, 1],
-    'Orange': [1, 1],
-    'Red': [1, 1],
-    'Purple': [1, 1]
+    'White': [1, 100],
+    'Black': [1, 100],
+    'Blue': [1, 100],
+    'Green': [1, 100],
+    'Yellow': [1, 100],
+    'Orange': [1, 100],
+    'Red': [1, 100],
+    'Purple': [1, 100]
 }
 
 class_race = {
@@ -97,6 +97,43 @@ class_whole_time = {
     'Purple': 0,
 }
 
+def draw_dashed_line(img, start, end, color, thickness=1, dash_length=12, gap_length=7):
+    # Calculate the total length of the line
+    line_length = int(((end[0] - start[0])**2 + (end[1] - start[1])**2) ** 0.5)
+    # Calculate the number of dashes
+    dashes = line_length // (dash_length + gap_length)
+    
+    for i in range(dashes):
+        start_dash = (
+            int(start[0] + (end[0] - start[0]) * (i * (dash_length + gap_length)) / line_length),
+            int(start[1] + (end[1] - start[1]) * (i * (dash_length + gap_length)) / line_length)
+        )
+        end_dash = (
+            int(start[0] + (end[0] - start[0]) * ((i * (dash_length + gap_length)) + dash_length) / line_length),
+            int(start[1] + (end[1] - start[1]) * ((i * (dash_length + gap_length)) + dash_length) / line_length)
+        )
+        cv2.line(img, start_dash, end_dash, color, thickness)
+
+def draw_grid(img, cell_size=100):
+    # Get the dimensions of the image
+    height, width = img.shape[:2]
+    
+    # Draw horizontal and vertical grid lines
+    for y in range(0, height, cell_size):
+        draw_dashed_line(img, (0, y), (width, y), (0, 0, 0), 1)  # Blue line with 1px thickness
+    # for x in range(0, width, cell_size):
+    #     cv2.line(img, (x, 0), (x, height), (255, 0, 0), 1)  # Blue line with 1px thickness
+
+    # Add text labels for X-axis (top edge) and Y-axis (left edge)
+    # for x in range(0, width, cell_size):
+    #     text_x = f"{x}"  # Label for X-axis
+    #     cv2.putText(img, text_x, (x + 5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1, cv2.LINE_AA)
+
+    for y in range(0, height, cell_size):
+        text_y = f"{y}"  # Label for Y-axis
+        cv2.putText(img, text_y, (5, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+    
+    return img
 
 def DetectionProcess(original_image):
 	height, width, _ = original_image.shape
@@ -142,7 +179,7 @@ def DetectionProcess(original_image):
 		detections.append(detection)
 	return detections
 
-def draw_class_rectangle(img, left, top, right, bottom, class_name):
+def draw_class_circle(img, left, top, right, bottom, class_name):
     # Get the color for the class from the dictionary
     color = class_colors.get(class_name, (255, 255, 255))  # Default to white if class not found
     # Draw the rectangle
@@ -168,15 +205,15 @@ def draw_startline(img):
 		cv2.line(img, start_point, end_point, color, thickness)
 		return img
 
-def rotate_point_clockwise(x, y, angle_degrees = -6.230828025477707006369426751592):
+def rotate_point_clockwise(x, y, angle_degrees = -1):
     # Convert the angle from degrees to radians
     angle_radians = math.radians(angle_degrees)
     
     # Calculate the new x and y coordinates using the rotation formula
-    new_x = x * math.cos(angle_radians) + y * math.sin(angle_radians)
-    new_y = -x * math.sin(angle_radians) + y * math.cos(angle_radians)
-    
-    return new_x, new_y-startline_y-30
+    new_x = x * math.cos(angle_radians) - y * math.sin(angle_radians)
+    new_y = x * math.sin(angle_radians) + y * math.cos(angle_radians)
+
+    return new_x, new_y-startline_y
 
 
 def DetectCard(img, timestamp_sec):
@@ -186,7 +223,7 @@ def DetectCard(img, timestamp_sec):
 	detected_cards = []
 	for detection in detections:
 		class_id, class_name, confidence, box, scale = \
-			detection['class_id'], detection['class_name'], detection['confidence'], detection['box'], detection[
+    		detection['class_id'], detection['class_name'], detection['confidence'], detection['box'], detection[
 				'scale']
 		left, top, right, bottom = round(box[0] * scale), round(box[1] * scale), round(
 			(box[0] + box[2]) * scale), round((box[1] + box[3]) * scale)
@@ -198,44 +235,39 @@ def DetectCard(img, timestamp_sec):
     
 		detected_cards.append([left, top, right, bottom])
   
-		
-		new_x0, new_y0 = rotate_point_clockwise(600-512, 550)
-		new_x, new_y = rotate_point_clockwise(left, top)
-		img = draw_class_rectangle(img, left, top, right, bottom, class_name)
-		# cv2.putText(img, closest_color_class, (left, top), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
+		new_x, new_y = rotate_point_clockwise(left, top, 0)
+		# new_x, new_y = left, top-startline_y
+		img = draw_class_circle(img, left, top, right, bottom, class_name)
 		cv2.putText(img, str(round(new_x))+", "+str(round(new_y)), (left, top), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
-		# cv2.putText(img, str(round(new_x0))+", "+str(round(new_y0)), (int(new_x0), int(new_y0)), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 1)
 
 		class_points[class_name] = (new_x, new_y)
-		if class_points_prev[class_name][1] > 0 and class_points[class_name][1] < 0:
-			# print("Pass", class_name)
+		if class_points_prev[class_name][1] >= 0 and class_points[class_name][1] < 0:
 			# Record end time
 			end_time = timestamp_sec
 			# Calculate elapsed time
-
-			class_race[class_name][0] += 1
 			class_race[class_name][2] = end_time - class_race[class_name][1]
 			class_race[class_name][1] = end_time
-			if class_race[class_name][0] > 0 and len(detections) != 8:
-				# print(str(class_race[class_name][2]))
+			
+			if len(detections) != 8:
 				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
+					class_race[class_name][0] += 1
 					class_whole_time[class_name] += class_race[class_name][2]
 					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
 					ball_index = recognition_classes.index(class_name) + 1
 					send_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
 					class_race[class_name][2] = 0
-				else:
-					class_race[class_name][0] -= 1
-			if class_race[class_name][0] > 0 and len(detections) == 8 and class_points[class_name][1] > -60:
-				
+				# else:
+				# 	class_race[class_name][0] -= 1
+			if len(detections) == 8 and class_points[class_name][1] > 0:
 				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
+					class_race[class_name][0] += 1
 					class_whole_time[class_name] += class_race[class_name][2]
 					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
 					ball_index = recognition_classes.index(class_name) + 1
 					send_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
 					class_race[class_name][2] = 0
-				else:
-					class_race[class_name][0] -= 1
+				# else:
+				# 	class_race[class_name][0] -= 1
 		if class_race[class_name][0] > 0 and class_points[class_name][1] > 0 and ((class_points_prev[class_name][1] > 0 and class_points[class_name][1] > 0 and class_points_prev[class_name][1] -  class_points[class_name][1] < 2 and class_points_prev[class_name][1] -  class_points[class_name][1]>0) or len(detections) == 8):
 			# Record end time
 			end_time = timestamp_sec
@@ -272,10 +304,11 @@ def DetectCard(img, timestamp_sec):
 						class_whole_time[class_name] += class_race[class_name][2]
 						if class_race_time[class_name] == 0:
 							class_race_time[class_name] = class_race[class_name][1]
+					# if class_whole_time[class_name] != 0:
 					print(f"{class_name} = {str(class_whole_time[class_name])}")
 			for idx, (class_name, y_coord) in enumerate(sorted_classes):
-					if class_whole_time[class_name] != 0:
-						print(f"p{idx+1} : {class_name}")
+					# if class_whole_time[class_name] != 0:
+					print(f"p{idx+1} : {class_name}")
      
 			class_points = {
 					'White': [0, 0],
@@ -335,16 +368,8 @@ def DetectCard(img, timestamp_sec):
 
 	img = draw_startline(img)
 	# Resize the image to half of its original dimensions
-	img_resized = cv2.resize(img, (img.shape[1] * 2, img.shape[0] * 2))
-
-	# Display the resized image
-	# cv2.imshow("Race", img)
-	# cv2.waitKey(1)
+	# img_resized = cv2.resize(img, (img.shape[1] * 2, img.shape[0] * 2))
 	return img
-
-
-
-
 
 # Set the appearance mode to 'dark' to use the dark theme globally
 ctk.set_appearance_mode("dark")  # Options are 'dark', 'light', or 'system' for automatic
@@ -384,20 +409,22 @@ class App(ctk.CTk):
 				self.console_box.grid(row=4, column=0, padx=10, pady=(2, 15), sticky="ew")
 				self.console_box.configure(state="disabled")
 
+    		# Add a button for saving settings
+				self.btn_reset = ctk.CTkButton(self.left_frame, text="Reset all races", command=self.reset_allraces)
+				self.btn_reset.grid(row=5, column=0, padx=10, pady=10, sticky="ew")
 				# Additional widgets in the left frame
 				# Add a dropdown menu for race status
 				
-
-				# self.dropdown_status = ctk.CTkOptionMenu(self.left_frame, values=["Scheduled", "Ongoing", "Completed", "Cancelled"])
-				# self.dropdown_status.grid(row=5, column=0, padx=10, pady=2, sticky="ew")
+				self.label_device = ctk.CTkLabel(self.left_frame, text="Select the camera port")
+				self.label_device.grid(row=6, column=0, padx=10, pady=(10, 2), sticky="w")	
+				self.dropdown_status = ctk.CTkOptionMenu(self.left_frame, values=["0", "1", "2", "3"])
+				self.dropdown_status.grid(row=7, column=0, padx=10, pady=2, sticky="ew")
 
 				# # Add a checkbox for race notifications
 				# self.checkbox_notifications = ctk.CTkCheckBox(self.left_frame, text="Enable Notifications")
 				# self.checkbox_notifications.grid(row=6, column=0, padx=10, pady=(15, 2), sticky="ew")
 
-				# Add a button for saving settings
-				self.btn_reset = ctk.CTkButton(self.left_frame, text="Reset all races", command=self.reset_allraces)
-				self.btn_reset.grid(row=7, column=0, padx=10, pady=10, sticky="ew")
+				
     
 				# Add a button for saving settings
 				self.btn_connect = ctk.CTkButton(self.left_frame, text="Connect the camera", command=self.process_video)
@@ -517,6 +544,7 @@ class App(ctk.CTk):
 						self.console_box.configure(state="normal")
 						self.console_box.insert("end", f"Detection FPS set to: {detection_fps}\n")
 						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
 				except ValueError:
 						self.console_box.configure(state="normal")
 						self.console_box.insert("end", "Invalid input for FPS. Please enter a number.\n")
@@ -658,8 +686,6 @@ class App(ctk.CTk):
 						if frame_count % detection_fps == 0:
 							# Get frame dimensions
 							height, width, _ = frame.shape
-							# print(height, width)
-							# print(str(width*2/5)) #512
 							
 							# Cut the middle portion (width * 2/5 to width * 4/5)
 							start_x = int(width * 1 / 5)
@@ -667,16 +693,14 @@ class App(ctk.CTk):
 							
 							# Slice the frame horizontally to keep only the middle portion
 							middle_frame = frame[:, start_x:end_x]
-							# img = None
 							# Darken the image by multiplying it with a factor less than 1
 							dark_factor = 1  # Adjust this value to control darkness level (0.0 to 1.0)
 							bright_factor = 0
 							img_darkened = cv2.convertScaleAbs(middle_frame, alpha=dark_factor, beta=bright_factor)
 							# Pass the cropped frame to the DetectCard function
 							img = DetectCard(middle_frame, timestamp_sec)
-							# Write the resized frame to the video file
-							# Display the image in an OpenCV window
-							# cv2.imshow("Detected Card", img)
+							img = draw_grid(img)
+
 							# Resize frame to label size
 							# Resize frame based on label dimensions
 							self.camera_frame.update()
