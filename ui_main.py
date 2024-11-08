@@ -4,6 +4,13 @@ import numpy as np
 import math
 from collections import Counter
 from datetime import datetime
+import customtkinter as ctk
+from customtkinter import CTkImage
+from tkinter import filedialog
+from PIL import Image, ImageTk
+from api_ball import send_request_in_background
+import threading
+
 # Constants.
 INPUT_WIDTH = 320
 INPUT_HEIGHT = 320
@@ -15,6 +22,12 @@ confThreshold = 0.6  # Confidence threshold
 nmsThreshold = 0.7 # Non-maximum suppression threshold
 dir_path = os.path.dirname(os.path.realpath(__file__))
 detection_model = cv2.dnn.readNetFromONNX(dir_path + "/ballv8n.onnx")
+
+# Initial parameter
+race_id = 1
+startline_y = 150
+detection_fps = 4
+isdisplayed = False
 
 
 # Define BGR color values for each class
@@ -147,10 +160,11 @@ def draw_class_rectangle(img, left, top, right, bottom, class_name):
     return img
 
 def draw_startline(img):
-		start_point = (0, 150)
-		end_point = (768, 150)
-		color = (0, 0, 255)  # Green
-		thickness = 5
+		global startline_y
+		start_point = (0, startline_y)
+		end_point = (img.shape[1], startline_y)
+		color = (0, 255, 0)  # Green
+		thickness = 2
 		cv2.line(img, start_point, end_point, color, thickness)
 		return img
 
@@ -162,11 +176,11 @@ def rotate_point_clockwise(x, y, angle_degrees = -6.2308280254777070063694267515
     new_x = x * math.cos(angle_radians) + y * math.sin(angle_radians)
     new_y = -x * math.sin(angle_radians) + y * math.cos(angle_radians)
     
-    return new_x, new_y-180
+    return new_x, new_y-startline_y-30
 
-isdisplayed = False
+
 def DetectCard(img, timestamp_sec):
-	global isdisplayed
+	global isdisplayed, race_id
 	global class_points, class_points_prev, class_race, class_race_time, class_whole_time
 	detections = DetectionProcess(img)
 	detected_cards = []
@@ -207,6 +221,8 @@ def DetectCard(img, timestamp_sec):
 				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
 					class_whole_time[class_name] += class_race[class_name][2]
 					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
+					ball_index = recognition_classes.index(class_name) + 1
+					send_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
 					class_race[class_name][2] = 0
 				else:
 					class_race[class_name][0] -= 1
@@ -215,6 +231,8 @@ def DetectCard(img, timestamp_sec):
 				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
 					class_whole_time[class_name] += class_race[class_name][2]
 					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
+					ball_index = recognition_classes.index(class_name) + 1
+					send_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
 					class_race[class_name][2] = 0
 				else:
 					class_race[class_name][0] -= 1
@@ -319,12 +337,14 @@ def DetectCard(img, timestamp_sec):
 	img_resized = cv2.resize(img, (img.shape[1] * 2, img.shape[0] * 2))
 
 	# Display the resized image
-	cv2.imshow("Race", img)
-	cv2.waitKey(1)
+	# cv2.imshow("Race", img)
+	# cv2.waitKey(1)
 	return img
 
-def process_video(video_path):
+def process_video():
+		global detection_fps
     # Open the video file
+		video_path = "./vid/(1).mp4"  # Change to your video path
 		cap = cv2.VideoCapture(video_path)
 		# cap = cv2.VideoCapture(0)
 		desired_fps = 60
@@ -346,12 +366,12 @@ def process_video(video_path):
 
 				 # Get the current frame timestamp in milliseconds
 				timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
-        # Convert to seconds (optional)
+				# Convert to seconds (optional)
 				timestamp_sec = timestamp_ms / 1000.0
 				# Define the codec and create VideoWriter object to write the video
 				fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 video
-				# output_video = cv2.VideoWriter('output_video.mp4', fourcc, 30, (int(frame.shape[1] * 2/5), frame.shape[0]))  # 30 fps, half-sized frame
-				if frame_count % 4 == 0:
+
+				if frame_count % detection_fps == 0:
 					# Get frame dimensions
 					height, width, _ = frame.shape
 					# print(height, width)
@@ -371,18 +391,271 @@ def process_video(video_path):
 					# Pass the cropped frame to the DetectCard function
 					img = DetectCard(middle_frame, timestamp_sec)
 					# Write the resized frame to the video file
-					# output_video.write(img)
-				frame_count += 1
+					# Display the image in an OpenCV window
+					cv2.imshow("Detected Card", img)
+					
+					# Check for 'q' or 'Esc' key press to exit the loop
+					key = cv2.waitKey(1)  # Wait 1 ms between frames for input
+					if key == ord('q') or key == 27:  # 27 is the ASCII code for Esc
+							break
 
-    # Release the video capture object
-		# cap.release()
+		cv2.destroyAllWindows()
 
-if __name__ == '__main__':
-    video_path = "./vid/(1).mp4"  # Change to your video path
-    # Record start time
+
+
+# Set the appearance mode to 'dark' to use the dark theme globally
+ctk.set_appearance_mode("dark")  # Options are 'dark', 'light', or 'system' for automatic
+
+class App(ctk.CTk):
+		def __init__(self):
+				super().__init__()
+
+				self.title("Race Detection Management")
+				self.geometry("800x600")
+
+				# Create a left frame
+				self.left_frame = ctk.CTkFrame(self)
+				self.left_frame.grid(row=0, column=0, padx=(20, 5), pady=20, sticky="nsew")
+
+				# Configure grid for the main window
+				self.grid_columnconfigure(0, weight=1)
+				self.grid_columnconfigure(1, weight=0)
+				self.grid_rowconfigure(0, weight=1)
+				self.grid_rowconfigure(1, weight=0)
+
+				# Left side - Column 0 widgets
+				self.label2 = ctk.CTkLabel(self.left_frame, text="Race Control")
+				self.label2.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+				self.input_raceid = ctk.CTkEntry(self.left_frame, placeholder_text=race_id)
+				self.input_raceid.grid(row=1, column=0, padx=10, pady=2, sticky="ew")
+
+				self.btn_set_raceid = ctk.CTkButton(self.left_frame, text="Set the Race ID", command=self.set_raceid)
+				self.btn_set_raceid.grid(row=2, column=0, padx=10, pady=2, sticky="ew")
+
+				self.label_status = ctk.CTkLabel(self.left_frame, text="Race Status")
+				self.label_status.grid(row=3, column=0, padx=10, pady=(10, 2), sticky="w")
     
-    process_video(video_path)
+				self.console_box = ctk.CTkTextbox(self.left_frame, height=250)
+				self.console_box.grid(row=4, column=0, padx=10, pady=(2, 15), sticky="ew")
+				self.console_box.configure(state="disabled")
 
+				# Additional widgets in the left frame
+				# Add a dropdown menu for race status
+				
+
+				# self.dropdown_status = ctk.CTkOptionMenu(self.left_frame, values=["Scheduled", "Ongoing", "Completed", "Cancelled"])
+				# self.dropdown_status.grid(row=5, column=0, padx=10, pady=2, sticky="ew")
+
+				# # Add a checkbox for race notifications
+				# self.checkbox_notifications = ctk.CTkCheckBox(self.left_frame, text="Enable Notifications")
+				# self.checkbox_notifications.grid(row=6, column=0, padx=10, pady=(15, 2), sticky="ew")
+
+				# Add a button for saving settings
+				self.btn_reset = ctk.CTkButton(self.left_frame, text="Reset all races", command=self.reset_allraces)
+				self.btn_reset.grid(row=7, column=0, padx=10, pady=10, sticky="ew")
+    
+				# Add a button for saving settings
+				self.btn_connect = ctk.CTkButton(self.left_frame, text="Connect the camera", command=process_video)
+				self.btn_connect.grid(row=8, column=0, padx=10, pady=10, sticky="ew")
+
+				# Configure the left_frame to expand with the window
+				self.left_frame.grid_rowconfigure(8, weight=1)  # Allows the last row to expand
+				self.left_frame.grid_columnconfigure(0, weight=1)  # Ensures all widgets expand horizontally
+
+    
+				# Create a right frame with two columns
+				self.right_frame = ctk.CTkFrame(self)
+				self.right_frame.grid(row=0, column=1, padx=(5, 20), pady=20, sticky="nsew")
+				self.right_frame.grid_columnconfigure(0, weight=1)  # First column
+				self.right_frame.grid_columnconfigure(1, weight=1)  # Second column
+
+				# Left side - Column 0 widgets
+				self.label1 = ctk.CTkLabel(self.right_frame, text="Race Management")
+				self.label1.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+				# Configure grid for the main window
+				self.grid_columnconfigure(0, weight=1)
+				self.grid_rowconfigure(0, weight=1)
+				# Create a main frame with two columns
+				self.right_frame = ctk.CTkFrame(self)
+				self.right_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
+				self.right_frame.grid_columnconfigure(0, weight=1)  # First column
+				self.right_frame.grid_columnconfigure(1, weight=1)  # Second column
+
+				# Left side - Column 0 widgets
+				self.label2 = ctk.CTkLabel(self.right_frame, text="Fine-tuning")
+				self.label2.grid(row=0, column=0, padx=10, pady=10, sticky="e")
+
+				self.input_startline_y = ctk.CTkEntry(self.right_frame, placeholder_text=startline_y)
+				self.input_startline_y.grid(row=1, column=0, padx=10, pady=2, sticky="ew")
+
+
+				self.btn_set_startline_y = ctk.CTkButton(self.right_frame, text="Set the Start Line Y", command=self.set_startline_y)
+				self.btn_set_startline_y.grid(row=2, column=0, padx=10, pady=2, sticky="ew")
+
+				# Right side - Column 1 widgets
+				self.label3 = ctk.CTkLabel(self.right_frame, text="Model")
+				self.label3.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+
+				self.input_fps = ctk.CTkEntry(self.right_frame, placeholder_text=detection_fps)
+				self.input_fps.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+
+				self.btn_setfps = ctk.CTkButton(self.right_frame, text="Set the Detection fps", command=self.set_fps)
+				self.btn_setfps.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+    
+				self.input_confscore = ctk.CTkEntry(self.right_frame, placeholder_text=confThreshold)
+				self.input_confscore.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
+
+				self.btn_confscore = ctk.CTkButton(self.right_frame, text="Set the Detection Conf.Score", command=self.set_confscore)
+				self.btn_confscore.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
+
+		def connect_camera(self):
+				# process_video()
+				self.video_thread = threading.Thread(target=self.process_video)
+				self.video_thread.start()
+    
+		def set_raceid(self):
+				global race_id
+				try:
+						race_id = int(self.input_raceid.get())
+						# Update console box with the FPS setting
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", f"Race ID set to: {race_id}\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+				except ValueError:
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "Invalid input for Race ID. Please enter a number.\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+      
+		def set_fps(self):
+				global detection_fps
+				try:
+						detection_fps = int(self.input_fps.get()) 
+						# Update console box with the FPS setting
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", f"Detection FPS set to: {detection_fps}\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+				except ValueError:
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "Invalid input for FPS. Please enter a number.\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+    
+		def set_confscore(self):
+				global confThreshold
+				try:
+						confThreshold = float(self.input_confscore.get())
+						# Update console box with the FPS setting
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", f"Detection ConfScore set to: {confThreshold}\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+				except ValueError:
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "Invalid input for ConfScore. Please enter a number.\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+    
+		def set_startline_y(self):
+				global startline_y
+				try:
+						startline_y = int(self.input_startline_y.get())
+						# Update console box with the FPS setting
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", f"Start Line Y set to: {startline_y}\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+				except ValueError:
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "Invalid input for Start Line Y. Please enter a number.\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+    
+		def reset_allraces(self):
+				global isdisplayed, race_id
+				global class_points, class_points_prev, class_race, class_race_time, class_whole_time
+				try:
+						class_points = {
+								'White': [0, 0],
+								'Black': [0, 0],
+								'Blue': [0, 0],
+								'Green': [0, 0],
+								'Yellow': [0, 0],
+								'Orange': [0, 0],
+								'Red': [0, 0],
+								'Purple': [0, 0]
+						}
+						class_points_prev = {
+								'White': [0, 0],
+								'Black': [0, 0],
+								'Blue': [0, 0],
+								'Green': [0, 0],
+								'Yellow': [0, 0],
+								'Orange': [0, 0],
+								'Red': [0, 0],
+								'Purple': [0, 0]
+						}
+						class_race = {
+								'White': [0, 0, 0],
+								'Black': [0, 0, 0],
+								'Blue': [0, 0, 0],
+								'Green': [0, 0, 0],
+								'Yellow': [0, 0, 0],
+								'Orange': [0, 0, 0],
+								'Red': [0, 0, 0],
+								'Purple': [0, 0, 0],
+						}
+						class_race_time = {
+								'White': 0,
+								'Black': 0,
+								'Blue': 0,
+								'Green': 0,
+								'Yellow': 0,
+								'Orange': 0,
+								'Red': 0,
+								'Purple': 0,
+						}
+						class_whole_time = {
+								'White': 0,
+								'Black': 0,
+								'Blue': 0,
+								'Green': 0,
+								'Yellow': 0,
+								'Orange': 0,
+								'Red': 0,
+								'Purple': 0,
+						}
+						isdisplayed = True
+						race_id = 1
+						# Clear any existing text
+						self.input_raceid.delete(0, "end")
+						# Insert the new value
+						self.input_raceid.insert(0, 1)
+						# Update console box with the FPS setting
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "All reset! \n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+				except ValueError:
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "Reset Failed! \n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+
+    
+				
+
+# if __name__ == '__main__':
+#     video_path = "./vid/(1).mp4"  # Change to your video path
+#     # Record start time
+#     process_video()
+
+# Create and run the application
+if __name__ == "__main__":
+		app = App()
+		app.mainloop()
 
 
 
