@@ -21,7 +21,7 @@ recognition_classes = ['White', 'Black', 'Blue', 'Green', 'Yellow', 'Orange', 'R
 confThreshold = 0.6  # Confidence threshold
 nmsThreshold = 0.7 # Non-maximum suppression threshold
 dir_path = os.path.dirname(os.path.realpath(__file__))
-detection_model = cv2.dnn.readNetFromONNX(dir_path + "/ballv8n.onnx")
+detection_model = cv2.dnn.readNetFromONNX(dir_path + "/model/ballv8n.onnx")
 
 # Initial parameter
 race_id = 1
