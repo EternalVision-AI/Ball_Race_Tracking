@@ -274,6 +274,7 @@ def DetectCard(img, timestamp_sec):
 							class_race_time[class_name] = class_race[class_name][1]
 					print(f"{class_name} = {str(class_whole_time[class_name])}")
 			for idx, (class_name, y_coord) in enumerate(sorted_classes):
+					if class_whole_time[class_name] != 0:
 						print(f"p{idx+1} : {class_name}")
      
 			class_points = {
@@ -341,65 +342,7 @@ def DetectCard(img, timestamp_sec):
 	# cv2.waitKey(1)
 	return img
 
-def process_video():
-		global detection_fps
-    # Open the video file
-		video_path = "./vid/(1).mp4"  # Change to your video path
-		cap = cv2.VideoCapture(video_path)
-		# cap = cv2.VideoCapture(0)
-		desired_fps = 60
-		cap.set(cv2.CAP_PROP_FPS, desired_fps)
-		fps = cap.get(cv2.CAP_PROP_FPS)
-		print(f"Camera FPS: {fps}")
-    # Check if video file opened successfully
-		if not cap.isOpened():
-				print(f"Error opening video file: {video_path}")
-				return
 
-		frame_count = 0
-    # Loop over each frame in the video
-				
-		while True:
-				ret, frame = cap.read()
-				if not ret:
-						break  # Stop if no more frames are returned
-
-				 # Get the current frame timestamp in milliseconds
-				timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
-				# Convert to seconds (optional)
-				timestamp_sec = timestamp_ms / 1000.0
-				# Define the codec and create VideoWriter object to write the video
-				fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 video
-
-				if frame_count % detection_fps == 0:
-					# Get frame dimensions
-					height, width, _ = frame.shape
-					# print(height, width)
-					# print(str(width*2/5)) #512
-					
-					# Cut the middle portion (width * 2/5 to width * 4/5)
-					start_x = int(width * 1 / 5)
-					end_x = int(width * 4 / 5)
-					
-					# Slice the frame horizontally to keep only the middle portion
-					middle_frame = frame[:, start_x:end_x]
-					# img = None
-					# Darken the image by multiplying it with a factor less than 1
-					dark_factor = 1  # Adjust this value to control darkness level (0.0 to 1.0)
-					bright_factor = 0
-					img_darkened = cv2.convertScaleAbs(middle_frame, alpha=dark_factor, beta=bright_factor)
-					# Pass the cropped frame to the DetectCard function
-					img = DetectCard(middle_frame, timestamp_sec)
-					# Write the resized frame to the video file
-					# Display the image in an OpenCV window
-					cv2.imshow("Detected Card", img)
-					
-					# Check for 'q' or 'Esc' key press to exit the loop
-					key = cv2.waitKey(1)  # Wait 1 ms between frames for input
-					if key == ord('q') or key == 27:  # 27 is the ASCII code for Esc
-							break
-
-		cv2.destroyAllWindows()
 
 
 
@@ -411,27 +354,28 @@ class App(ctk.CTk):
 				super().__init__()
 
 				self.title("Race Detection Management")
-				self.geometry("800x600")
-
-				# Create a left frame
-				self.left_frame = ctk.CTkFrame(self)
-				self.left_frame.grid(row=0, column=0, padx=(20, 5), pady=20, sticky="nsew")
+				# Maximize the window to fill the screen
+				self.attributes("-fullscreen", True)  # Enable full screen mode
+				
 
 				# Configure grid for the main window
 				self.grid_columnconfigure(0, weight=1)
-				self.grid_columnconfigure(1, weight=0)
-				self.grid_rowconfigure(0, weight=1)
-				self.grid_rowconfigure(1, weight=0)
-
+				self.grid_columnconfigure(1, weight=2)
+				self.grid_columnconfigure(2, weight=4)
+				# self.grid_rowconfigure(0, weight=1)
+				# self.grid_rowconfigure(1, weight=0)
+				# Create a left frame
+				self.left_frame = ctk.CTkFrame(self)
+				self.left_frame.grid(row=0, column=0, padx=(20, 5), pady=20, sticky="new")
 				# Left side - Column 0 widgets
 				self.label2 = ctk.CTkLabel(self.left_frame, text="Race Control")
 				self.label2.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
 				self.input_raceid = ctk.CTkEntry(self.left_frame, placeholder_text=race_id)
-				self.input_raceid.grid(row=1, column=0, padx=10, pady=2, sticky="ew")
+				self.input_raceid.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
 
 				self.btn_set_raceid = ctk.CTkButton(self.left_frame, text="Set the Race ID", command=self.set_raceid)
-				self.btn_set_raceid.grid(row=2, column=0, padx=10, pady=2, sticky="ew")
+				self.btn_set_raceid.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
 
 				self.label_status = ctk.CTkLabel(self.left_frame, text="Race Status")
 				self.label_status.grid(row=3, column=0, padx=10, pady=(10, 2), sticky="w")
@@ -456,7 +400,7 @@ class App(ctk.CTk):
 				self.btn_reset.grid(row=7, column=0, padx=10, pady=10, sticky="ew")
     
 				# Add a button for saving settings
-				self.btn_connect = ctk.CTkButton(self.left_frame, text="Connect the camera", command=process_video)
+				self.btn_connect = ctk.CTkButton(self.left_frame, text="Connect the camera", command=self.process_video)
 				self.btn_connect.grid(row=8, column=0, padx=10, pady=10, sticky="ew")
 
 				# Configure the left_frame to expand with the window
@@ -466,7 +410,7 @@ class App(ctk.CTk):
     
 				# Create a right frame with two columns
 				self.right_frame = ctk.CTkFrame(self)
-				self.right_frame.grid(row=0, column=1, padx=(5, 20), pady=20, sticky="nsew")
+				self.right_frame.grid(row=0, column=1, padx=(5, 5), pady=20, sticky="nsew")
 				self.right_frame.grid_columnconfigure(0, weight=1)  # First column
 				self.right_frame.grid_columnconfigure(1, weight=1)  # Second column
 
@@ -478,37 +422,73 @@ class App(ctk.CTk):
 				self.grid_columnconfigure(0, weight=1)
 				self.grid_rowconfigure(0, weight=1)
 				# Create a main frame with two columns
-				self.right_frame = ctk.CTkFrame(self)
-				self.right_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
-				self.right_frame.grid_columnconfigure(0, weight=1)  # First column
-				self.right_frame.grid_columnconfigure(1, weight=1)  # Second column
+				self.middle_frame = ctk.CTkFrame(self)
+				self.middle_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
+				self.middle_frame.grid_columnconfigure(0, weight=1)  # First column
+				self.middle_frame.grid_columnconfigure(1, weight=1)  # Second column
 
 				# Left side - Column 0 widgets
-				self.label2 = ctk.CTkLabel(self.right_frame, text="Fine-tuning")
+				self.label2 = ctk.CTkLabel(self.middle_frame, text="Fine-tuning")
 				self.label2.grid(row=0, column=0, padx=10, pady=10, sticky="e")
 
-				self.input_startline_y = ctk.CTkEntry(self.right_frame, placeholder_text=startline_y)
+				self.input_startline_y = ctk.CTkEntry(self.middle_frame, placeholder_text=startline_y)
 				self.input_startline_y.grid(row=1, column=0, padx=10, pady=2, sticky="ew")
 
 
-				self.btn_set_startline_y = ctk.CTkButton(self.right_frame, text="Set the Start Line Y", command=self.set_startline_y)
+				self.btn_set_startline_y = ctk.CTkButton(self.middle_frame, text="Set the Start Line Y", command=self.set_startline_y)
 				self.btn_set_startline_y.grid(row=2, column=0, padx=10, pady=2, sticky="ew")
 
 				# Right side - Column 1 widgets
-				self.label3 = ctk.CTkLabel(self.right_frame, text="Model")
+				self.label3 = ctk.CTkLabel(self.middle_frame, text="Model")
 				self.label3.grid(row=0, column=1, padx=10, pady=10, sticky="w")
 
-				self.input_fps = ctk.CTkEntry(self.right_frame, placeholder_text=detection_fps)
+				self.input_fps = ctk.CTkEntry(self.middle_frame, placeholder_text=detection_fps)
 				self.input_fps.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
 
-				self.btn_setfps = ctk.CTkButton(self.right_frame, text="Set the Detection fps", command=self.set_fps)
+				self.btn_setfps = ctk.CTkButton(self.middle_frame, text="Set the Detection fps", command=self.set_fps)
 				self.btn_setfps.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
     
-				self.input_confscore = ctk.CTkEntry(self.right_frame, placeholder_text=confThreshold)
+				self.input_confscore = ctk.CTkEntry(self.middle_frame, placeholder_text=confThreshold)
 				self.input_confscore.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
 
-				self.btn_confscore = ctk.CTkButton(self.right_frame, text="Set the Detection Conf.Score", command=self.set_confscore)
+				self.btn_confscore = ctk.CTkButton(self.middle_frame, text="Set the Detection Conf.Score", command=self.set_confscore)
 				self.btn_confscore.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
+    
+				# Right side - Column 1 widgets
+				self.label3 = ctk.CTkLabel(self.middle_frame, text="Model")
+				self.label3.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+
+				self.input_fps = ctk.CTkEntry(self.middle_frame, placeholder_text=detection_fps)
+				self.input_fps.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+
+				self.btn_setfps = ctk.CTkButton(self.middle_frame, text="Set the Detection fps", command=self.set_fps)
+				self.btn_setfps.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+    
+				self.input_confscore = ctk.CTkEntry(self.middle_frame, placeholder_text=confThreshold)
+				self.input_confscore.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
+
+				self.btn_confscore = ctk.CTkButton(self.middle_frame, text="Set the Detection Conf.Score", command=self.set_confscore)
+				self.btn_confscore.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
+    
+				# Create a main frame with two columns
+    		# Calculate frame width as a percentage of screen width (e.g., 30%)
+				# Set the window to maximum size
+				screen_width = self.winfo_screenwidth()
+				screen_height = self.winfo_screenheight()
+				# frame_width = int(screen_width * 0.6)
+				# Right frame setup without a hardcoded width
+				self.right_frame = ctk.CTkFrame(self)
+				self.right_frame.grid(row=0, column=2, padx=(5, 20), pady=20, sticky="nsew")
+
+				# Configure the right frame grid for expanding its widgets
+				self.right_frame.grid_columnconfigure(0, weight=1)  # Expands horizontally
+				self.right_frame.grid_rowconfigure(0, weight=1)     # Expands vertically
+
+				self.camera_frame = ctk.CTkLabel(self.right_frame, text="", height=screen_height)
+				self.camera_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+				
+				
 
 		def connect_camera(self):
 				# process_video()
@@ -645,7 +625,76 @@ class App(ctk.CTk):
 						self.console_box.configure(state="disabled")
 
     
-				
+		def process_video(self):
+				global detection_fps
+				# Open the video file
+				video_path = "./vid/(1).mp4"  # Change to your video path
+				cap = cv2.VideoCapture(video_path)
+				# cap = cv2.VideoCapture(0)
+				desired_fps = 60
+				cap.set(cv2.CAP_PROP_FPS, desired_fps)
+				fps = cap.get(cv2.CAP_PROP_FPS)
+				print(f"Camera FPS: {fps}")
+				# Check if video file opened successfully
+				if not cap.isOpened():
+						print(f"Error opening video file: {video_path}")
+						return
+
+				frame_count = 0
+				# Loop over each frame in the video
+						
+				while True:
+						ret, frame = cap.read()
+						if not ret:
+								break  # Stop if no more frames are returned
+
+						# Get the current frame timestamp in milliseconds
+						timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+						# Convert to seconds (optional)
+						timestamp_sec = timestamp_ms / 1000.0
+						# Define the codec and create VideoWriter object to write the video
+						fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 video
+
+						if frame_count % detection_fps == 0:
+							# Get frame dimensions
+							height, width, _ = frame.shape
+							# print(height, width)
+							# print(str(width*2/5)) #512
+							
+							# Cut the middle portion (width * 2/5 to width * 4/5)
+							start_x = int(width * 1 / 5)
+							end_x = int(width * 4 / 5)
+							
+							# Slice the frame horizontally to keep only the middle portion
+							middle_frame = frame[:, start_x:end_x]
+							# img = None
+							# Darken the image by multiplying it with a factor less than 1
+							dark_factor = 1  # Adjust this value to control darkness level (0.0 to 1.0)
+							bright_factor = 0
+							img_darkened = cv2.convertScaleAbs(middle_frame, alpha=dark_factor, beta=bright_factor)
+							# Pass the cropped frame to the DetectCard function
+							img = DetectCard(middle_frame, timestamp_sec)
+							# Write the resized frame to the video file
+							# Display the image in an OpenCV window
+							# cv2.imshow("Detected Card", img)
+							# Resize frame to label size
+							# Resize frame based on label dimensions
+							self.camera_frame.update()
+							label_width = self.camera_frame.winfo_width()
+							label_height = self.camera_frame.winfo_height()
+							resized_frame = cv2.resize(img, (label_width, label_height))
+							# Convert frame to CTkImage for display
+							img = ctk.CTkImage(Image.fromarray(cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)), size=(label_width, label_height))
+							self.camera_frame.configure(image=img)
+							self.camera_frame.image = img
+							
+							# Check for 'q' or 'Esc' key press to exit the loop
+							key = cv2.waitKey(1)  # Wait 1 ms between frames for input
+							if key == ord('q') or key == 27:  # 27 is the ASCII code for Esc
+									break
+						 # Schedule the next frame update
+
+				cv2.destroyAllWindows()
 
 # if __name__ == '__main__':
 #     video_path = "./vid/(1).mp4"  # Change to your video path
