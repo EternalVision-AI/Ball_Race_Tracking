@@ -9,7 +9,7 @@ INPUT_WIDTH = 320
 INPUT_HEIGHT = 320
 
 recognition_classes = ['White', 'Black', 'Blue', 'Green', 'Yellow', 'Orange', 'Red', 'Purple']
-
+ball_no = ['Yellow', 'Blue', 'Red', 'White', 'Orange', 'Green', 'Purple', 'Black']
 
 confThreshold = 0.6  # Confidence threshold
 nmsThreshold = 0.7 # Non-maximum suppression threshold

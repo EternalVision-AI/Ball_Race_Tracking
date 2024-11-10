@@ -8,7 +8,7 @@ import customtkinter as ctk
 from customtkinter import CTkImage
 from tkinter import filedialog
 from PIL import Image, ImageTk
-from api_ball import send_request_in_background
+from api_ball import send_lap_request_in_background, send_finalorder_request_in_background
 import threading
 
 # Constants.
@@ -16,6 +16,7 @@ INPUT_WIDTH = 320
 INPUT_HEIGHT = 320
 
 recognition_classes = ['White', 'Black', 'Blue', 'Green', 'Yellow', 'Orange', 'Red', 'Purple']
+ball_no = ['Yellow', 'Blue', 'Red', 'White', 'Orange', 'Green', 'Purple', 'Black']
 
 
 confThreshold = 0.6  # Confidence threshold
@@ -252,9 +253,9 @@ def DetectCard(img, timestamp_sec):
 				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
 					class_race[class_name][0] += 1
 					class_whole_time[class_name] += class_race[class_name][2]
-					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
-					ball_index = recognition_classes.index(class_name) + 1
-					send_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
+					# print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
+					ball_index = ball_no.index(class_name) + 1
+					send_lap_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
 					class_race[class_name][2] = 0
 				# else:
 				# 	class_race[class_name][0] -= 1
@@ -262,9 +263,9 @@ def DetectCard(img, timestamp_sec):
 				if class_race[class_name][2] > 10 and class_race[class_name][2] <= 100:
 					class_race[class_name][0] += 1
 					class_whole_time[class_name] += class_race[class_name][2]
-					print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
-					ball_index = recognition_classes.index(class_name) + 1
-					send_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
+					# print(class_name + " in Lap "+str(class_race[class_name][0]) + " = "+str(class_race[class_name][2]))
+					ball_index = ball_no.index(class_name) + 1
+					send_finalorder_request_in_background(race_id=race_id, marble_id=ball_index, lap=class_race[class_name][0], time=class_race[class_name][2])
 					class_race[class_name][2] = 0
 				# else:
 				# 	class_race[class_name][0] -= 1
@@ -305,10 +306,16 @@ def DetectCard(img, timestamp_sec):
 						if class_race_time[class_name] == 0:
 							class_race_time[class_name] = class_race[class_name][1]
 					# if class_whole_time[class_name] != 0:
-					print(f"{class_name} = {str(class_whole_time[class_name])}")
+					# print(f"{class_name} = {str(class_whole_time[class_name])}")
+			final_order = []
 			for idx, (class_name, y_coord) in enumerate(sorted_classes):
 					# if class_whole_time[class_name] != 0:
-					print(f"p{idx+1} : {class_name}")
+					# print(f"p{idx+1} : {class_name}")
+					ball_index = ball_no.index(class_name) + 1
+					final_order.append(ball_index)
+			if class_whole_time['White'] != 0:
+				print(final_order)
+				send_finalorder_request_in_background(race_id=race_id, final_order=final_order, snapshot=img)
      
 			class_points = {
 					'White': [0, 0],
