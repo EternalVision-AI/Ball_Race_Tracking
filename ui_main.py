@@ -29,6 +29,7 @@ race_id = 1
 startline_y = 150
 detection_fps = 4
 isdisplayed = False
+camera_id = 0
 
 
 # Define BGR color values for each class
@@ -424,8 +425,8 @@ class App(ctk.CTk):
 				
 				self.label_device = ctk.CTkLabel(self.left_frame, text="Select the camera port")
 				self.label_device.grid(row=6, column=0, padx=10, pady=(10, 2), sticky="w")	
-				self.dropdown_status = ctk.CTkOptionMenu(self.left_frame, values=["0", "1", "2", "3"])
-				self.dropdown_status.grid(row=7, column=0, padx=10, pady=2, sticky="ew")
+				self.input_camera_id = ctk.CTkOptionMenu(self.left_frame, values=["0", "1", "2", "3"], command=self.set_camera_id)
+				self.input_camera_id.grid(row=7, column=0, padx=10, pady=2, sticky="ew")
 
 				# # Add a checkbox for race notifications
 				# self.checkbox_notifications = ctk.CTkCheckBox(self.left_frame, text="Enable Notifications")
@@ -472,21 +473,6 @@ class App(ctk.CTk):
 				self.btn_set_startline_y = ctk.CTkButton(self.middle_frame, text="Set the Start Line Y", command=self.set_startline_y)
 				self.btn_set_startline_y.grid(row=2, column=0, padx=10, pady=2, sticky="ew")
 
-				# Right side - Column 1 widgets
-				self.label3 = ctk.CTkLabel(self.middle_frame, text="Model")
-				self.label3.grid(row=0, column=1, padx=10, pady=10, sticky="w")
-
-				self.input_fps = ctk.CTkEntry(self.middle_frame, placeholder_text=detection_fps)
-				self.input_fps.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
-
-				self.btn_setfps = ctk.CTkButton(self.middle_frame, text="Set the Detection fps", command=self.set_fps)
-				self.btn_setfps.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
-    
-				self.input_confscore = ctk.CTkEntry(self.middle_frame, placeholder_text=confThreshold)
-				self.input_confscore.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
-
-				self.btn_confscore = ctk.CTkButton(self.middle_frame, text="Set the Detection Conf.Score", command=self.set_confscore)
-				self.btn_confscore.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
     
 				# Right side - Column 1 widgets
 				self.label3 = ctk.CTkLabel(self.middle_frame, text="Model")
@@ -659,13 +645,27 @@ class App(ctk.CTk):
 						self.console_box.yview("end")  # Auto-scroll to the latest entry
 						self.console_box.configure(state="disabled")
 
-    
+		def set_camera_id(self, selected_value):
+				global camera_id
+				try:
+						camera_id = selected_value
+						# Update console box with the FPS setting
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", f"Camera ID set to: {camera_id}\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+				except ValueError:
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "Invalid input for Camera ID. Please enter a number.\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+ 
 		def process_video(self):
-				global detection_fps
+				global camera_id, detection_fps
 				# Open the video file
 				video_path = "./vid/(1).mp4"  # Change to your video path
-				cap = cv2.VideoCapture(video_path)
-				# cap = cv2.VideoCapture(0)
+				# cap = cv2.VideoCapture(video_path)
+				cap = cv2.VideoCapture(camera_id)
 				desired_fps = 60
 				cap.set(cv2.CAP_PROP_FPS, desired_fps)
 				fps = cap.get(cv2.CAP_PROP_FPS)
