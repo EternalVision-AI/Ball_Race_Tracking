@@ -81,8 +81,8 @@ def send_racefinal_post_request(race_id, final_order, snapshot):
                 "sixth_place": int(final_order[5]),
                 "seventh_place": int(final_order[6]),
                 "eighth_place": int(final_order[7]),
-                "nineth_place": 0,
-                "tenth_place": 0,
+                "nineth_place": -1,
+                "tenth_place": -1,
                 "snapshot": "data:image/png;base64,"+base64_str
             }
     # Set headers (optional; include if required by your API)
