@@ -1,0 +1,5 @@
+{
+    "startline_y": 180,
+    "detection_fps": 4,
+    "confThreshold": 0.75
+}

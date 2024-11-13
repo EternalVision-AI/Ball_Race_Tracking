@@ -10,6 +10,7 @@ from tkinter import filedialog
 from PIL import Image, ImageTk
 from api_ball import send_lap_request_in_background, send_finalorder_request_in_background
 import threading
+import json
 
 # Constants.
 INPUT_WIDTH = 320
@@ -19,7 +20,7 @@ recognition_classes = ['White', 'Black', 'Blue', 'Green', 'Yellow', 'Orange', 'R
 ball_no = ['Yellow', 'Blue', 'Red', 'White', 'Orange', 'Green', 'Purple', 'Black']
 
 
-confThreshold = 0.6  # Confidence threshold
+confThreshold = 0.75  # Confidence threshold
 nmsThreshold = 0.7 # Non-maximum suppression threshold
 dir_path = os.path.dirname(os.path.realpath(__file__))
 detection_model = cv2.dnn.readNetFromONNX(dir_path + "/model/ballv8n.onnx")
@@ -29,7 +30,27 @@ race_id = 1
 startline_y = 150
 detection_fps = 4
 isdisplayed = False
+
+config_file_path = "config.json"
+# Check if config file exists
+if not os.path.exists(config_file_path):
+		print("The config.json file is missing.")
+else: # Load parameters from JSON file
+		with open(config_file_path, "r") as config_file:
+				config_data = json.load(config_file)
+		# Retrieve each parameter with default values if they are not found
+		startline_y = config_data.get("startline_y", 180)          # Default to 180 if missing
+		detection_fps = config_data.get("detection_fps", 4)      # Default to 4 if missing
+		confThreshold = config_data.get("confThreshold", 0.7)     # Default to 0.7 if missing
+
+
+
 camera_id = 0
+
+
+
+
+
 
 
 # Define BGR color values for each class
@@ -490,6 +511,9 @@ class App(ctk.CTk):
 				self.btn_confscore = ctk.CTkButton(self.middle_frame, text="Set the Detection Conf.Score", command=self.set_confscore)
 				self.btn_confscore.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
     
+				self.btn_saveparam = ctk.CTkButton(self.middle_frame, text="Save the parameters", command=self.save_param)
+				self.btn_saveparam.grid(row=5, column=1, padx=10, pady=5, sticky="ew")
+    
 				# Create a main frame with two columns
     		# Calculate frame width as a percentage of screen width (e.g., 30%)
 				# Set the window to maximum size
@@ -571,6 +595,32 @@ class App(ctk.CTk):
 				except ValueError:
 						self.console_box.configure(state="normal")
 						self.console_box.insert("end", "Invalid input for Start Line Y. Please enter a number.\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+      
+		def save_param(self):
+				global startline_y, detection_fps, confThreshold
+				try:
+						# Create dictionary to store parameters
+						config_data = {
+								"startline_y": startline_y,
+								"detection_fps": detection_fps,
+								"confThreshold": confThreshold
+						}
+						
+						# Save to config.json
+						with open("config.json", "w") as config_file:
+								json.dump(config_data, config_file, indent=4)
+						
+						# Update console box with the FPS setting
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", f"Parameters saved to config.json: {config_data}\n")
+						self.console_box.yview("end")  # Auto-scroll to the latest entry
+						self.console_box.configure(state="disabled")
+				except ValueError:
+						# Handle invalid input
+						self.console_box.configure(state="normal")
+						self.console_box.insert("end", "Invalid input. Please enter valid numbers.\n")
 						self.console_box.yview("end")  # Auto-scroll to the latest entry
 						self.console_box.configure(state="disabled")
     
