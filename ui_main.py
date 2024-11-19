@@ -722,7 +722,7 @@ class App(ctk.CTk):
 				print(f"Camera FPS: {fps}")
 				# Check if video file opened successfully
 				if not cap.isOpened():
-						print(f"Error opening video file: {video_path}")
+						print(f"Error opening camera: {str(camera_id)}")
 						return
 
 				frame_count = 0
