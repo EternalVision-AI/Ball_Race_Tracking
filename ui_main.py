@@ -713,7 +713,7 @@ class App(ctk.CTk):
 		def process_video(self):
 				global camera_id, detection_fps
 				# Open the video file
-				video_path = "./vid/(1).mp4"  # Change to your video path
+				# video_path = "./vid/(1).mp4"  # Change to your video path
 				# cap = cv2.VideoCapture(video_path)
 				cap = cv2.VideoCapture(camera_id)
 				desired_fps = 60
